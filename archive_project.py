@@ -1,4 +1,4 @@
-#!/user/bin/env python3
+#!/usr/bin/env python3
 
 """
 Script to archive KiCAD project. Place all used symbols, footprints, 3D models
@@ -31,8 +31,8 @@ import argparse
 
 
 # -- Global variables ---------------------------------------------------------
-PROJ_SYM_LIB_DIR = "lib_sym"
-PROJ_FP_LIB_DIR = "lib_fp.pretty"
+#PROJ_SYM_LIB_DIR = "lib_sym"
+PROJ_FP_LIB_DIR = "archive.pretty"
 PROJ_MOD3D_DIR = "3d_models"
 
 
@@ -202,8 +202,8 @@ def fix_sym_lib(sym_lib_path, sym_lib_name):
 
 
 # -- Main body ----------------------------------------------------------------
-if sys.version_info < (3, 5, 0):
-    print_info("You need python 3.5.0 or later to run this script!")
+if sys.version_info < (3, 9, 0):
+    print_info("You need python 3.9.0 or later to run this script!")
     exit(1)
 
 if os.name == "posix":
@@ -237,16 +237,17 @@ print_dbg(dict_to_str(env_vars))
 
 print_info('\tRead KiCAD footprint libraries ...')
 fp_libs = read_lib_table(KICAD_FP_LIB_TABLE_PATH, env_vars)
+fp_libs |= read_lib_table(proj_path + "/fp-lib-table", env_vars)
 proj_fp_lib_path = proj_path + "/" + PROJ_FP_LIB_DIR
 if not os.path.exists(proj_fp_lib_path):
     os.makedirs(proj_fp_lib_path)
 f = open(proj_path + "/fp-lib-table", 'w')
 f.write('''(fp_lib_table
-  (lib (name %s)(type KiCad)(uri ${KIPRJMOD}/%s)(options "")(descr ""))
+  (lib (name archive)(type KiCad)(uri ${KIPRJMOD}/%s)(options "")(descr ""))
 )
-''' % (PROJ_FP_LIB_DIR.split('.')[0], PROJ_FP_LIB_DIR))
+''' % (PROJ_FP_LIB_DIR))
 f.close()
-fp_libs[PROJ_FP_LIB_DIR.split('.')[0]] = proj_fp_lib_path
+fp_libs["archive"] = proj_fp_lib_path
 print_dbg(dict_to_str(fp_libs))
 
 print_info('\tFind all project schematic files ...')
@@ -260,19 +261,19 @@ fp_used = []
 for sch in proj_sch:
     fp_used += extract_fp_used(sch, fp_libs)
 print_dbg(list_to_str(fp_used))
-
+"""
 print_info('\tExtract list of all 3D models assigned to used footprints ...')
 mod3d_used = []
 for fp in fp_used:
     mod3d_used += extract_mod3d_used(fp, env_vars)
 print_dbg(list_to_str(mod3d_used))
-
+"""
 print_info('\tCopy all used footprints to project directory ...')
 for fp in fp_used:
     if proj_fp_lib_path not in fp:
         shutil.copy(fp, proj_fp_lib_path)
         print_dbg("Copy %s to %s" % (fp, proj_fp_lib_path))
-
+"""
 print_info('\tCopy all used 3d models to project directory ...')
 proj_mod3d_path = proj_path + "/" + PROJ_MOD3D_DIR
 if not os.path.exists(proj_mod3d_path):
@@ -290,7 +291,7 @@ for fp in fp_used:
     proj_fp = proj_fp_lib_path + '/' + os.path.basename(fp)
     link_fp_mod3d(proj_fp, PROJ_MOD3D_DIR)
     print_dbg("Link project 3d models with %s" % proj_fp)
-
+"""
 print_info('\tLink used footprints with project schematic files ...')
 for sch in proj_sch:
     link_sch_fp(sch, PROJ_FP_LIB_DIR)
@@ -306,8 +307,8 @@ except IndexError:
     exit(1)
 
 print_dbg(proj_sym_lib_cache)
-proj_sym_lib_name = os.path.basename(proj_sym_lib_cache).split('-cache')[0]
-proj_sym_lib_path = proj_path + "/" + PROJ_SYM_LIB_DIR
+proj_sym_lib_name = "archive"
+proj_sym_lib_path = proj_path
 proj_sym_lib = proj_sym_lib_path + "/" + proj_sym_lib_name + ".lib"
 if not os.path.exists(proj_sym_lib_path):
     os.makedirs(proj_sym_lib_path)
@@ -316,9 +317,9 @@ fix_sym_lib(proj_sym_lib, proj_sym_lib_name)
 print_dbg("Copy %s to %s" % (proj_sym_lib_cache, proj_sym_lib))
 f = open(proj_path + "/sym-lib-table", 'w')
 f.write('''(sym_lib_table
-  (lib (name %s)(type Legacy)(uri ${KIPRJMOD}/%s/%s.lib)(options "")(descr ""))
+  (lib (name %s)(type Legacy)(uri ${KIPRJMOD}/%s.lib)(options "")(descr ""))
 )
-''' % (proj_sym_lib_name, PROJ_SYM_LIB_DIR, proj_sym_lib_name))
+''' % (proj_sym_lib_name, proj_sym_lib_name))
 f.close()
 
 print_info('\tLink project footprints with project symbol library ...')
